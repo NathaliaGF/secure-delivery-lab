@@ -75,8 +75,8 @@ docs/                   architecture notes, threat model, rollback runbook
 docker compose up -d --build                      # the app on http://127.0.0.1:8080
 curl -s localhost:8080/healthz
 
-export GF_ADMIN_PASSWORD='choose-one'             # app + Prometheus + Grafana
-docker compose -f compose.yml -f compose.observability.yml up -d --build
+export GF_ADMIN_PASSWORD="$(openssl rand -base64 18)"   # random, never a fixed password
+docker compose -f compose.yml -f compose.observability.yml up -d --build   # app + Prometheus + Grafana
 # Grafana http://127.0.0.1:3000   Prometheus http://127.0.0.1:9090
 
 make test lint scan                               # the pipeline's checks, locally
