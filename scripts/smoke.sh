@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2329  # the check functions are invoked indirectly through check()
+# shellcheck disable=SC2317,SC2329  # the check functions are invoked indirectly through check() (the code was renamed between shellcheck versions)
 # Black-box checks against a running stack.
 # Usage: smoke.sh <app-url> [prometheus-url]
 set -euo pipefail

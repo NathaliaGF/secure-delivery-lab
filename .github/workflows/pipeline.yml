@@ -96,16 +96,16 @@ jobs:
         run: docker run -d --name rocky --cap-add NET_ADMIN "$ROCKY_IMAGE" sleep infinity
       - name: Apply the role
         working-directory: ansible
-        # A container has no systemd or SELinux: the role is told so explicitly, not left to detection.
-        run: ansible-playbook -i rocky, -c community.docker.docker playbooks/harden.yml -e rhel_cis_hardening_manage_services=false
+        # The container is entered as root and has no sudo, systemd or SELinux: say so explicitly.
+        run: ansible-playbook -i rocky, -c community.docker.docker playbooks/harden.yml -e rhel_cis_hardening_manage_services=false -e ansible_become=false
       - name: Apply again and require zero changes (idempotence)
         working-directory: ansible
         run: |
-          ansible-playbook -i rocky, -c community.docker.docker playbooks/harden.yml -e rhel_cis_hardening_manage_services=false | tee second-run.log
+          ansible-playbook -i rocky, -c community.docker.docker playbooks/harden.yml -e rhel_cis_hardening_manage_services=false -e ansible_become=false | tee second-run.log
           grep -E 'rocky +: ok=[0-9]+ +changed=0 ' second-run.log
       - name: Verify the final state
         working-directory: ansible
-        run: ansible-playbook -i rocky, -c community.docker.docker tests/verify.yml
+        run: ansible-playbook -i rocky, -c community.docker.docker tests/verify.yml -e ansible_become=false
 
   build-and-gate:
     name: build, security gates, sign
