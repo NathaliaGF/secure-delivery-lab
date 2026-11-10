@@ -6,7 +6,8 @@ ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
 WORKDIR /build
 COPY app/requirements.txt .
 RUN python -m venv /opt/venv \
- && /opt/venv/bin/pip install --require-hashes -r requirements.txt
+ && /opt/venv/bin/pip install --require-hashes -r requirements.txt \
+ && /opt/venv/bin/python -m pip uninstall -y pip
 
 FROM python:3.12-slim@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b AS runtime
 ARG APP_VERSION=dev
@@ -17,8 +18,17 @@ ENV PATH=/opt/venv/bin:$PATH \
 LABEL org.opencontainers.image.title="secure-delivery-lab" \
       org.opencontainers.image.source="https://github.com/NathaliaGF/secure-delivery-lab" \
       org.opencontainers.image.licenses="MIT"
-# Unprivileged user with a fixed UID, no shell, no home. The package manager is removed from
-# the final image: it is not needed at runtime and only adds attack surface.
+# Security updates that Debian has published but the pinned base image does not contain yet
+# (found by the Trivy gate: zlib1g, two HIGH CVEs with a fix). Only already-installed packages are
+# upgraded, never new ones. The version is not pinned on purpose: pinning would break the build
+# as soon as Debian ships the next fix, and Trivy re-checks the result on every build.
+# hadolint ignore=DL3008
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends --only-upgrade zlib1g \
+ && rm -rf /var/lib/apt/lists/*
+
+# Unprivileged user with a fixed UID, no shell, no home. pip is removed from the final image
+# (and from the virtualenv above): it is not needed at runtime and only adds attack surface.
 RUN groupadd --system --gid 10001 app \
  && useradd --system --uid 10001 --gid app --no-create-home --shell /usr/sbin/nologin app \
  && python -m pip uninstall -y pip setuptools wheel >/dev/null 2>&1 || true

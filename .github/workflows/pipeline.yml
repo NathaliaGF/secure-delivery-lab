@@ -155,6 +155,15 @@ jobs:
           # README example contained. It lives in git history, so fixing the file is not enough.
           baseline: .secrets-baseline.json
 
+      - name: Trivy report in the job log (never blocks)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ env.LOCAL_IMAGE }}
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "0"
+
       - name: "Gate 3: image vulnerabilities (Trivy, HIGH and CRITICAL with a fix)"
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
