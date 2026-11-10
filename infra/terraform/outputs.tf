@@ -1,0 +1,11 @@
+output "app_url" {
+  value = "http://127.0.0.1:${var.app_host_port}"
+}
+
+output "prometheus_url" {
+  value = "http://127.0.0.1:${var.prometheus_host_port}"
+}
+
+output "app_container" {
+  value = docker_container.app.name
+}
