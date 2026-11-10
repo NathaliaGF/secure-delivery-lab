@@ -140,7 +140,7 @@ jobs:
 
       # ---- gates: the image is only pushed if every one of them passes ----
       - name: "Gate 1: Dockerfile and compose security (dockerscan)"
-        uses: NathaliaGF/docker-security-scanner@f8a7302531a2e5e81dc84d8952c5e838ae973e91 # main
+        uses: NathaliaGF/docker-security-scanner@6f5fed7d990e2506a95fc1c3a226e03806fac1e1 # main
         with:
           path: .
           fail-on: MEDIUM
