@@ -1,0 +1,5 @@
+# {{ ansible_managed }}
+{% for module in rhel_cis_hardening_disabled_modules %}
+install {{ module }} /bin/false
+blacklist {{ module }}
+{% endfor %}

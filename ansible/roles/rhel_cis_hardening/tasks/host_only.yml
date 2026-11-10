@@ -1,0 +1,37 @@
+---
+# Needs systemd and SELinux, so it is skipped in containers (see README, "What is tested").
+- name: Set the SELinux mode and policy
+  ansible.posix.selinux:
+    policy: targeted
+    state: "{{ rhel_cis_hardening_selinux_state }}"
+  register: rhel_cis_hardening_selinux
+  tags: [selinux]
+
+- name: Report that a reboot is required for SELinux to become enforcing
+  ansible.builtin.debug:
+    msg: SELinux is configured but a reboot is needed before it takes effect.
+  when: rhel_cis_hardening_selinux.reboot_required | default(false)
+  tags: [selinux]
+
+- name: Gather service facts
+  ansible.builtin.service_facts:
+  tags: [services]
+
+- name: Enable the services the hardening depends on
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  loop:
+    - auditd
+    - nftables
+  tags: [services]
+
+- name: Disable services that should not run on a server
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: false
+    state: stopped
+  loop: "{{ rhel_cis_hardening_disabled_services }}"
+  when: (item if '.' in item else item ~ '.service') in ansible_facts.services
+  tags: [services]

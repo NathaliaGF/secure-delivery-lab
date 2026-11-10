@@ -1,0 +1,17 @@
+# {{ ansible_managed }}
+# Sorted first on purpose: sshd uses the first value it reads for each keyword.
+# Algorithms (Ciphers, MACs, Kex) are left to the system-wide crypto-policy on RHEL.
+PermitRootLogin {{ rhel_cis_hardening_ssh_permit_root_login }}
+PasswordAuthentication {{ rhel_cis_hardening_ssh_password_authentication }}
+PermitEmptyPasswords no
+MaxAuthTries {{ rhel_cis_hardening_ssh_max_auth_tries }}
+LoginGraceTime {{ rhel_cis_hardening_ssh_login_grace_time }}
+X11Forwarding no
+AllowTcpForwarding {{ rhel_cis_hardening_ssh_allow_tcp_forwarding }}
+AllowAgentForwarding no
+ClientAliveInterval {{ rhel_cis_hardening_ssh_client_alive_interval }}
+ClientAliveCountMax {{ rhel_cis_hardening_ssh_client_alive_count_max }}
+HostbasedAuthentication no
+IgnoreRhosts yes
+LogLevel VERBOSE
+Banner {{ rhel_cis_hardening_ssh_banner }}

@@ -1,0 +1,22 @@
+# {{ ansible_managed }}
+# Identity and authentication files
+-w /etc/passwd -p wa -k identity
+-w /etc/group -p wa -k identity
+-w /etc/shadow -p wa -k identity
+-w /etc/gshadow -p wa -k identity
+# Privilege escalation
+-w /etc/sudoers -p wa -k scope
+-w /etc/sudoers.d/ -p wa -k scope
+# SSH and SELinux configuration
+-w /etc/ssh/sshd_config -p wa -k sshd
+-w /etc/ssh/sshd_config.d/ -p wa -k sshd
+-w /etc/selinux/ -p wa -k mac-policy
+# Logins and sessions
+-w /var/log/lastlog -p wa -k logins
+-w /var/run/utmp -p wa -k session
+-w /var/log/wtmp -p wa -k session
+-w /var/log/btmp -p wa -k session
+{% if rhel_cis_hardening_audit_immutable %}
+# Make the configuration immutable until the next reboot (keep this last)
+-e 2
+{% endif %}

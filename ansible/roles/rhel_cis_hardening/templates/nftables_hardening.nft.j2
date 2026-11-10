@@ -1,0 +1,24 @@
+# {{ ansible_managed }}
+# Host firewall: drop inbound by default, allow established traffic, loopback, ICMP and the
+# listed TCP ports. Outbound is not restricted. Test from a console before applying remotely.
+table inet hardening
+flush table inet hardening
+
+table inet hardening {
+  chain input {
+    type filter hook input priority 0; policy drop;
+    ct state established,related accept
+    ct state invalid drop
+    iif "lo" accept
+    meta l4proto { icmp, ipv6-icmp } accept
+{% if rhel_cis_hardening_nft_allowed_tcp_ports %}
+    tcp dport { {{ rhel_cis_hardening_nft_allowed_tcp_ports | join(', ') }} } ct state new accept
+{% endif %}
+  }
+  chain forward {
+    type filter hook forward priority 0; policy {{ rhel_cis_hardening_nft_forward_policy }};
+  }
+  chain output {
+    type filter hook output priority 0; policy accept;
+  }
+}

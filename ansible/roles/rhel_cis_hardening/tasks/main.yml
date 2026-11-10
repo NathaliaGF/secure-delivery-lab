@@ -1,0 +1,146 @@
+---
+- name: Install the packages the hardening relies on
+  ansible.builtin.dnf:
+    name:
+      - openssh-server
+      - audit
+      - nftables
+      - libpwquality
+    state: present
+  tags: [packages]
+
+- name: Make sure the drop-in directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - /etc/modprobe.d
+    - /etc/sysctl.d
+    - /etc/ssh/sshd_config.d
+    - /etc/security/pwquality.conf.d
+    - /etc/audit/rules.d
+    - /etc/nftables
+  tags: [packages]
+
+- name: Disable rarely needed kernel modules
+  ansible.builtin.template:
+    src: modprobe_hardening.conf.j2
+    dest: /etc/modprobe.d/60-hardening.conf
+    owner: root
+    group: root
+    mode: "0644"
+  tags: [kernel]
+
+- name: Write kernel and network sysctl settings
+  ansible.builtin.template:
+    src: sysctl_hardening.conf.j2
+    dest: "{{ rhel_cis_hardening_sysctl_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Apply sysctl settings
+  tags: [kernel, sysctl]
+
+- name: Write the login banner
+  ansible.builtin.template:
+    src: banner.j2
+    dest: "{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - /etc/issue
+    - /etc/issue.net
+  tags: [banner]
+
+- name: Harden sshd with a drop-in that is read before the vendor files
+  ansible.builtin.template:
+    src: sshd_hardening.conf.j2
+    dest: /etc/ssh/sshd_config.d/00-hardening.conf
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Reload sshd
+  tags: [ssh]
+
+- name: Restrict permissions on sshd_config
+  ansible.builtin.file:
+    path: /etc/ssh/sshd_config
+    owner: root
+    group: root
+    mode: "0600"
+  tags: [ssh, permissions]
+
+- name: Enforce password quality
+  ansible.builtin.template:
+    src: pwquality.conf.j2
+    dest: /etc/security/pwquality.conf.d/60-hardening.conf
+    owner: root
+    group: root
+    mode: "0644"
+  tags: [passwords]
+
+- name: Set password aging and default umask in login.defs
+  ansible.builtin.lineinfile:
+    path: /etc/login.defs
+    regexp: '^\s*{{ item.key }}\s'
+    line: "{{ item.key }}   {{ item.value }}"
+  loop:
+    - { key: PASS_MAX_DAYS, value: "{{ rhel_cis_hardening_pass_max_days }}" }
+    - { key: PASS_MIN_DAYS, value: "{{ rhel_cis_hardening_pass_min_days }}" }
+    - { key: PASS_WARN_AGE, value: "{{ rhel_cis_hardening_pass_warn_age }}" }
+    - { key: UMASK, value: "{{ rhel_cis_hardening_umask }}" }
+  tags: [passwords]
+
+- name: Lock down the account database files
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: /etc/passwd, mode: "0644" }
+    - { path: /etc/group, mode: "0644" }
+    - { path: /etc/shadow, mode: "0000" }
+    - { path: /etc/gshadow, mode: "0000" }
+  tags: [permissions]
+
+- name: Audit identity, privilege, ssh and session changes
+  ansible.builtin.template:
+    src: audit_hardening.rules.j2
+    dest: /etc/audit/rules.d/60-hardening.rules
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Load audit rules
+  tags: [audit]
+
+- name: Write the host firewall ruleset
+  ansible.builtin.template:
+    src: nftables_hardening.nft.j2
+    dest: /etc/nftables/hardening.nft
+    owner: root
+    group: root
+    mode: "0600"
+    validate: nft -c -f %s
+  notify: Reload nftables
+  tags: [firewall]
+
+- name: Load the ruleset at boot through the distribution's nftables.conf
+  ansible.builtin.lineinfile:
+    path: /etc/sysconfig/nftables.conf
+    line: include "/etc/nftables/hardening.nft"
+    create: true
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Reload nftables
+  tags: [firewall]
+
+- name: Services and mandatory access control (real hosts only)
+  ansible.builtin.include_tasks: host_only.yml
+  when: rhel_cis_hardening_manage_services | bool
+  tags: [services, selinux]

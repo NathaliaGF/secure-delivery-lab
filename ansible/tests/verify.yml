@@ -1,0 +1,85 @@
+---
+# Proves the final state of the host, independently of how the role got there.
+# Uses `sshd -T` so it checks the *effective* sshd configuration, vendor drop-ins included.
+- name: Verify hardening
+  hosts: all
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Generate host keys so that sshd can print its effective configuration
+      ansible.builtin.command: ssh-keygen -A
+      changed_when: false
+
+    - name: Read the effective sshd configuration
+      ansible.builtin.command: sshd -T
+      register: verify_sshd
+      changed_when: false
+
+    - name: Check the effective sshd settings
+      ansible.builtin.assert:
+        that:
+          - "item in verify_sshd.stdout_lines"
+        fail_msg: "sshd -T does not contain '{{ item }}'"
+        quiet: true
+      loop:
+        - permitrootlogin no
+        - passwordauthentication no
+        - permitemptypasswords no
+        - maxauthtries 4
+        - logingracetime 60
+        - x11forwarding no
+        - allowtcpforwarding no
+        - allowagentforwarding no
+        - clientaliveinterval 300
+        - clientalivecountmax 2
+        - hostbasedauthentication no
+        - loglevel VERBOSE
+        - banner /etc/issue.net
+
+    - name: Hardened lines are present in the managed files
+      ansible.builtin.lineinfile:
+        path: "{{ item.path }}"
+        line: "{{ item.line }}"
+        state: present
+      check_mode: true
+      register: verify_lines
+      failed_when: verify_lines is changed
+      loop:
+        - { path: /etc/sysctl.d/60-hardening.conf, line: "net.ipv4.ip_forward = 0" }
+        - { path: /etc/sysctl.d/60-hardening.conf, line: "net.ipv4.tcp_syncookies = 1" }
+        - { path: /etc/sysctl.d/60-hardening.conf, line: "net.ipv4.conf.all.accept_redirects = 0" }
+        - { path: /etc/sysctl.d/60-hardening.conf, line: "kernel.randomize_va_space = 2" }
+        - { path: /etc/sysctl.d/60-hardening.conf, line: "fs.suid_dumpable = 0" }
+        - { path: /etc/modprobe.d/60-hardening.conf, line: "install cramfs /bin/false" }
+        - { path: /etc/modprobe.d/60-hardening.conf, line: "install usb-storage /bin/false" }
+        - { path: /etc/security/pwquality.conf.d/60-hardening.conf, line: "minlen = 14" }
+        - { path: /etc/security/pwquality.conf.d/60-hardening.conf, line: "minclass = 4" }
+        - { path: /etc/login.defs, line: "PASS_MAX_DAYS   365" }
+        - { path: /etc/login.defs, line: "PASS_MIN_DAYS   1" }
+        - { path: /etc/login.defs, line: "UMASK   027" }
+        - { path: /etc/audit/rules.d/60-hardening.rules, line: "-w /etc/shadow -p wa -k identity" }
+        - { path: /etc/audit/rules.d/60-hardening.rules, line: "-w /etc/sudoers.d/ -p wa -k scope" }
+        - { path: /etc/sysconfig/nftables.conf, line: 'include "/etc/nftables/hardening.nft"' }
+
+    - name: The firewall ruleset is syntactically valid
+      ansible.builtin.command: nft -c -f /etc/nftables/hardening.nft
+      changed_when: false
+
+    - name: The firewall ruleset drops inbound by default and allows ssh
+      ansible.builtin.command:
+        argv: [grep, -Eq, "{{ item }}", /etc/nftables/hardening.nft]
+      changed_when: false
+      loop:
+        - 'policy drop;'
+        - 'tcp dport \{ 22 \} ct state new accept'
+
+    - name: Account files have restrictive permissions
+      ansible.builtin.stat:
+        path: "{{ item.path }}"
+      register: verify_stat
+      failed_when: verify_stat.stat.mode != item.mode
+      loop:
+        - { path: /etc/shadow, mode: "0000" }
+        - { path: /etc/gshadow, mode: "0000" }
+        - { path: /etc/passwd, mode: "0644" }
+        - { path: /etc/ssh/sshd_config, mode: "0600" }

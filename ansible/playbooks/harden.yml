@@ -1,0 +1,6 @@
+---
+- name: Harden RHEL-family hosts
+  hosts: all
+  become: true
+  roles:
+    - role: rhel_cis_hardening

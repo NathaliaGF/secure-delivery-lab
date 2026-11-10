@@ -1,0 +1,57 @@
+---
+# Services (auditd, nftables, sshd reload, sysctl apply) are only touched on real hosts.
+# Containers have no systemd and a read-only /proc/sys, so there the role only writes files.
+rhel_cis_hardening_manage_services: >-
+  {{ ansible_facts.virtualization_type | default('') not in
+     ['docker', 'container', 'podman', 'lxc', 'systemd-nspawn'] }}
+
+# --- SSH (drop-in sorted first, because sshd uses the first value it reads) ---
+rhel_cis_hardening_ssh_permit_root_login: "no"
+rhel_cis_hardening_ssh_password_authentication: "no"      # key-only; set "yes" until keys are deployed
+rhel_cis_hardening_ssh_max_auth_tries: 4
+rhel_cis_hardening_ssh_login_grace_time: 60
+rhel_cis_hardening_ssh_allow_tcp_forwarding: "no"
+rhel_cis_hardening_ssh_client_alive_interval: 300
+rhel_cis_hardening_ssh_client_alive_count_max: 2
+rhel_cis_hardening_ssh_banner: /etc/issue.net
+
+# --- Kernel / network (sysctl) ---
+rhel_cis_hardening_ip_forward: false      # set true on routers and container hosts
+rhel_cis_hardening_sysctl_file: /etc/sysctl.d/60-hardening.conf
+
+# --- Kernel modules that are rarely needed and widen the attack surface ---
+rhel_cis_hardening_disabled_modules:
+  - cramfs
+  - freevxfs
+  - jffs2
+  - hfs
+  - hfsplus
+  - udf
+  - usb-storage
+
+# --- Password quality and aging ---
+rhel_cis_hardening_pwquality_minlen: 14
+rhel_cis_hardening_pwquality_minclass: 4
+rhel_cis_hardening_pwquality_maxrepeat: 3
+rhel_cis_hardening_pass_max_days: 365
+rhel_cis_hardening_pass_min_days: 1
+rhel_cis_hardening_pass_warn_age: 7
+rhel_cis_hardening_umask: "027"
+
+# --- auditd ---
+rhel_cis_hardening_audit_immutable: false   # true adds -e 2: rules cannot change until reboot
+
+# --- nftables host firewall (default drop inbound) ---
+rhel_cis_hardening_nft_allowed_tcp_ports: [22]
+rhel_cis_hardening_nft_forward_policy: drop # use accept on hosts that route or run containers
+
+# --- SELinux ---
+rhel_cis_hardening_selinux_state: enforcing
+
+# --- Services that should not run on a server ---
+rhel_cis_hardening_disabled_services:
+  - avahi-daemon
+  - cups
+  - rpcbind
+  - telnet.socket
+  - vsftpd

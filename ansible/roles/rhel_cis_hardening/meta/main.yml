@@ -1,0 +1,10 @@
+---
+galaxy_info:
+  author: Nathalia Gomes
+  description: Host hardening for RHEL-family systems, based on areas of the CIS Benchmark.
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: EL
+      versions: ["9"]
+dependencies: []
