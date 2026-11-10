@@ -83,10 +83,12 @@ resource "docker_container" "prometheus" {
     name = docker_network.stack.name
   }
 
-  # Config is uploaded into the container instead of bind-mounting a host path.
-  upload {
-    file    = "/etc/prometheus/prometheus.yml"
-    content = file("${path.module}/../../observability/prometheus.yml")
+  # The config is bind-mounted read-only. (The `upload` block cannot be used here: it writes into the
+  # container, which is read-only on purpose.)
+  volumes {
+    host_path      = abspath("${path.module}/../../observability/prometheus.yml")
+    container_path = "/etc/prometheus/prometheus.yml"
+    read_only      = true
   }
 
   depends_on = [docker_container.app]
