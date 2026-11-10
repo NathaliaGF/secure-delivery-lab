@@ -151,6 +151,9 @@ jobs:
           git-history: "true"
           severity: MEDIUM
           sarif-file: secrets-scanner.sarif
+          # One accepted finding, explained in the README: a placeholder password that an early
+          # README example contained. It lives in git history, so fixing the file is not enough.
+          baseline: .secrets-baseline.json
 
       - name: "Gate 3: image vulnerabilities (Trivy, HIGH and CRITICAL with a fix)"
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0

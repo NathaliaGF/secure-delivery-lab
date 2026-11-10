@@ -42,6 +42,14 @@ Nothing is pushed unless every gate passes, and the image that is pushed is **th
 | Supply chain | cosign (keyless, Sigstore) | the image signature does not match this repository's pipeline identity |
 | Staging | smoke tests + `verify-hardening.sh` | an endpoint misbehaves, Prometheus cannot scrape the app, or the container is not hardened |
 
+### The one accepted finding
+
+`.secrets-baseline.json` accepts exactly one finding: an early README example showed
+`GF_ADMIN_PASSWORD='choose-one'`. It was never a credential, but the secrets gate scans the **git
+history**, so correcting the file does not make it disappear. Rather than rewrite history or weaken the
+gate, the finding is accepted explicitly. The baseline stores a hash, not the value, and any *new*
+finding still fails the build. The README now generates a random password instead.
+
 ## Hardening, and how each item is proven
 
 | Control | Where | Proven by |
